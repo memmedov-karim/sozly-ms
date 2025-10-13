@@ -1,1 +1,0 @@
-{"version":3,"file":"Option.d.ts","sourceRoot":"","sources":["../../src/models/Option.ts"],"names":[],"mappings":"AAAA,OAAO,QAAQ,EAAE,EAAC,QAAQ,EAAS,MAAM,UAAU,CAAA;AAEnD,MAAM,WAAW,OAAQ,SAAQ,QAAQ;IACrC,KAAK,EAAE,MAAM,CAAC;IACd,IAAI,EAAE,MAAM,CAAC;IACb,IAAI,EAAE;QAAE,CAAC,GAAG,EAAE,MAAM,GAAG,MAAM,CAAA;KAAE,CAAC;CACnC;;;;AAQD,wBAA+D"}
