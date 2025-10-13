@@ -12,6 +12,7 @@ import reportRouter from './router/ReportRouter';
 import { CORS_ORIGIN } from './constants/shared';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { gracefulShutdown } from './shutdown';
+import { validateApiKey } from './middleware/validateApiKey';
 
 
 const app = express();
@@ -58,6 +59,8 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+app.use(validateApiKey);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -68,6 +71,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+
 app.use(optionRouter);
 app.use(reportRouter);
 
@@ -77,6 +81,7 @@ app.use('*', (req, res) => {
 });
 
 app.use(globalErrorHandler);
+
 
 async function main() {
   const db = DatabaseConfig.getInstance();
