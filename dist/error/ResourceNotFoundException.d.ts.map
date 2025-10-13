@@ -1,0 +1,1 @@
+{"version":3,"file":"ResourceNotFoundException.d.ts","sourceRoot":"","sources":["../../src/error/ResourceNotFoundException.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,aAAa,EAAE,MAAM,iBAAiB,CAAC;AAEhD,qBAAa,yBAA0B,SAAQ,aAAa;gBAC9C,OAAO,EAAE,MAAM;CAI5B"}
