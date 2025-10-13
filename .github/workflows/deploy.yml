@@ -1,0 +1,51 @@
+on:
+  push:
+    branches:
+      - 'release/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to server via SSH
+        env:
+          ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} "
+            set -e
+      
+            echo '🔴 Deleting old PM2 process (if exists)...'
+            pm2 delete sozly-ms || echo 'No existing PM2 process'
+      
+            echo '🧹 Removing old project folder...'
+            rm -rf /root/backend/sozly-ms
+      
+            echo '📥 Cloning fresh repo...'
+            git clone git@github.com:memmedov-karim/sozly-ms.git /root/backend/sozly-ms
+      
+            cd /root/backend/sozly-ms
+      
+            echo '📝 Creating .env file from GitHub secret...'
+            echo \"$ENV_FILE\" > .env
+      
+            echo '📦 Installing dependencies...'
+            npm install
+      
+            echo '🛠 Building TypeScript project...'
+            npm run build
+      
+            echo '🚀 Starting app with PM2 using cluster script...'
+            pm2 start dist/cluster.js --name sozly-ms
+      
+            echo '💾 Saving PM2 process list...'
+            pm2 save
+          "
