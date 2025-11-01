@@ -1,12 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-interface IMessage {
+export interface IMessage {
   from: string;
   text: string;
   timestamp: Date;
 }
 
-interface IChUser {
+export interface IChUser {
   id: string;
   ip: string;
 }

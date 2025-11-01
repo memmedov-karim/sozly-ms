@@ -1,9 +1,13 @@
 import mongoose from "mongoose";
+import { RedisConfig } from "./redis";
 
 export class DatabaseConfig {
   private static instance: DatabaseConfig;
+  private redisConfig: RedisConfig;
 
-  private constructor() {}
+  private constructor() {
+    this.redisConfig = RedisConfig.getInstance();
+  }
 
   static getInstance(): DatabaseConfig {
     if (!DatabaseConfig.instance) {
@@ -24,6 +28,14 @@ export class DatabaseConfig {
     }
   }
 
+  async connectRedis(): Promise<void> {
+    await this.redisConfig.connect();
+  }
+
+  getRedisClient() {
+    return this.redisConfig.getClient();
+  }
+
   private async closeMongoDB(): Promise<void> {
     try {
       await mongoose.connection.close();
@@ -37,6 +49,9 @@ export class DatabaseConfig {
     await Promise.allSettled([
       this.closeMongoDB().catch((err) => {
         console.log("Error closing mongo connection", err);
+      }),
+      this.redisConfig.close().catch((err) => {
+        console.log("Error closing redis connection", err);
       }),
     ]);
   }

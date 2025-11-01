@@ -9,6 +9,15 @@ import { DatabaseConfig } from './config/database';
 import optionRouter from './router/OptionRouter';
 import reportRouter from './router/ReportRouter';
 
+// Admin Panel Routers
+import authRouter from './router/AuthRouter';
+import adminManagementRouter from './router/AdminManagementRouter';
+import dashboardRouter from './router/DashboardRouter';
+import userManagementRouter from './router/UserManagementRouter';
+import chatManagementRouter from './router/ChatManagementRouter';
+import reportManagementRouter from './router/ReportManagementRouter';
+import analyticsRouter from './router/AnalyticsRouter';
+
 import { CORS_ORIGIN } from './constants/shared';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { gracefulShutdown } from './shutdown';
@@ -27,16 +36,29 @@ console.log('CORS Origins:', CORS_ORIGIN);
 
 // CORS must come BEFORE helmet and other middleware
 const corsOptions = {
-  origin: CORS_ORIGIN,
+  origin: function (origin: any, callback: any) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if the origin is in our allowed list
+    const allowedOrigins = Array.isArray(CORS_ORIGIN) ? CORS_ORIGIN : [CORS_ORIGIN];
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With',' x-api-key'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-api-key', 'Accept'],
   exposedHeaders: ['Content-Length', 'X-Request-Id'],
   maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight
+app.options('*', cors(corsOptions)); // Handle preflight for Safari
 
 app.use(
   helmet({
@@ -59,7 +81,7 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use(validateApiKey);
+// app.use(validateApiKey);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -72,8 +94,20 @@ app.get('/health', (req, res) => {
 });
 
 
+// Public API routes
 app.use(optionRouter);
 app.use(reportRouter);
+
+// Authentication routes (public)
+app.use('/api/auth', authRouter);
+
+// Admin Panel API routes (protected)
+app.use('/api/admin/admins', adminManagementRouter);
+app.use('/api/admin/dashboard', dashboardRouter);
+app.use('/api/admin/users', userManagementRouter);
+app.use('/api/admin/chats', chatManagementRouter);
+app.use('/api/admin/reports', reportManagementRouter);
+app.use('/api/admin/analytics', analyticsRouter);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -86,6 +120,7 @@ app.use(globalErrorHandler);
 async function main() {
   const db = DatabaseConfig.getInstance();
   await db.connectMongoDB();
+  await db.connectRedis();
 
   const PORT = Number(process.env.PORT) || 8080;
   const HOST = process.env.HOST || 'localhost';
