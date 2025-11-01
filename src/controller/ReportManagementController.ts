@@ -122,15 +122,16 @@ export class ReportManagementController {
   }
 
   // POST /api/admin/reports/bulk-delete
-  async bulkDeleteReports(req: Request, res: Response, next: NextFunction) {
+  async bulkDeleteReports(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { reportIds } = req.body;
 
       if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'reportIds array is required',
         });
+        return;
       }
 
       const result = await ReportManagementService.bulkDeleteReports(reportIds);

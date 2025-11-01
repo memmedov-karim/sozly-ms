@@ -14,16 +14,17 @@ export const authenticate = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'No token provided. Please login.',
       });
+      return;
     }
 
     const token = authHeader.split(' ')[1];
@@ -39,7 +40,7 @@ export const authenticate = async (
 
     next();
   } catch (error: any) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: 'Invalid or expired token. Please login again.',
     });
@@ -48,19 +49,21 @@ export const authenticate = async (
 
 // Authorization middleware - check admin roles
 export const authorize = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.admin) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Authentication required',
       });
+      return;
     }
 
     if (!roles.includes(req.admin.role)) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'You do not have permission to perform this action',
       });
+      return;
     }
 
     next();

@@ -59,16 +59,17 @@ export class AdminManagementController {
   }
 
   // POST /api/admin/admins
-  async createAdmin(req: Request, res: Response, next: NextFunction) {
+  async createAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { username, email, password, fullName, role } = req.body;
 
       // Validate required fields
       if (!username || !email || !password || !fullName || !role) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Please provide all required fields',
         });
+        return;
       }
 
       const admin = await AdminManagementService.createAdmin({
@@ -157,16 +158,17 @@ export class AdminManagementController {
   }
 
   // POST /api/admin/admins/:id/reset-password
-  async resetPassword(req: Request, res: Response, next: NextFunction) {
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { newPassword } = req.body;
 
       if (!newPassword) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'New password required',
         });
+        return;
       }
 
       const result = await AdminManagementService.resetAdminPassword(id, newPassword);

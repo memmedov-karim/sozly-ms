@@ -4,16 +4,17 @@ import { AuthRequest } from '../middleware/authMiddleware';
 
 export class AuthController {
   // POST /api/auth/register
-  async register(req: Request, res: Response, next: NextFunction) {
+  async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { username, email, password, fullName, role } = req.body;
 
       // Validate required fields
       if (!username || !email || !password || !fullName) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Please provide all required fields',
         });
+        return;
       }
 
       const result = await AuthService.register({
@@ -38,16 +39,17 @@ export class AuthController {
   }
 
   // POST /api/auth/login
-  async login(req: Request, res: Response, next: NextFunction) {
+  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { usernameOrEmail, password } = req.body;
 
       // Validate required fields
       if (!usernameOrEmail || !password) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Please provide username and password',
         });
+        return;
       }
 
       const result = await AuthService.login(usernameOrEmail, password);
@@ -66,13 +68,14 @@ export class AuthController {
   }
 
   // GET /api/auth/me
-  async getMe(req: AuthRequest, res: Response, next: NextFunction) {
+  async getMe(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.admin) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           message: 'Not authenticated',
         });
+        return;
       }
 
       const admin = await AuthService.getAdminById(req.admin.id);
@@ -101,15 +104,16 @@ export class AuthController {
   }
 
   // POST /api/auth/refresh
-  async refreshToken(req: Request, res: Response, next: NextFunction) {
+  async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Refresh token required',
         });
+        return;
       }
 
       const result = await AuthService.refreshToken(refreshToken);
@@ -127,22 +131,24 @@ export class AuthController {
   }
 
   // POST /api/auth/change-password
-  async changePassword(req: AuthRequest, res: Response, next: NextFunction) {
+  async changePassword(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.admin) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           message: 'Not authenticated',
         });
+        return;
       }
 
       const { oldPassword, newPassword } = req.body;
 
       if (!oldPassword || !newPassword) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Please provide old and new passwords',
         });
+        return;
       }
 
       const result = await AuthService.changePassword(
