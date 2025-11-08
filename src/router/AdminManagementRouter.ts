@@ -34,3 +34,4 @@ router.post('/:id/reset-password', superAdminOnly, AdminManagementController.res
 export default router;
 
 
+
