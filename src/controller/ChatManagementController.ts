@@ -125,6 +125,20 @@ export class ChatManagementController {
       next(error);
     }
   }
+
+  // GET /api/admin/chats/:sessionId/analytics
+  async getChatMessageAnalytics(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { sessionId } = req.params;
+      const analytics = await ChatManagementService.getChatMessageAnalytics(sessionId);
+      res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new ChatManagementController();

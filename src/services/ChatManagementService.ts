@@ -60,31 +60,98 @@ export class ChatManagementService {
 
     const skip = (page - 1) * limit;
     const sortOptions: any = {};
-    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    
+    // Map frontend field names to database field names
+    const fieldMapping: any = {
+      'startTime': 'startedAt',
+      'messageCount': 'messageCount' // handled specially
+    };
+    
+    const dbSortField = fieldMapping[sortBy] || sortBy;
+    
+    // Handle messageCount sorting specially since it's a computed field
+    const needsAggregation = sortBy === 'messageCount';
+    
+    if (!needsAggregation) {
+      sortOptions[dbSortField] = sortOrder === 'asc' ? 1 : -1;
+    }
 
-    const [chats, total] = await Promise.all([
-      ChatSession.find(query)
-        .sort(sortOptions)
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      ChatSession.countDocuments(query),
-    ]);
+    let chats: any[];
+    let total: number;
+
+    // Always use aggregation pipeline to calculate messageCount and map field names
+    const baseAggregationStages: any[] = [
+      { $match: query },
+      {
+        $addFields: {
+          messageCount: {
+            $cond: {
+              if: { $isArray: '$messages' },
+              then: { $size: '$messages' },
+              else: 0
+            }
+          },
+          startTime: '$startedAt', // Map startedAt to startTime for frontend
+          userIp: { $arrayElemAt: ['$users.ip', 0] }, // Get first user's IP
+          isActive: { $eq: ['$status', 'connected'] } // Map status to isActive
+        }
+      }
+    ];
+
+    if (needsAggregation) {
+      // Sort by message count
+      const aggregationPipeline: any[] = [
+        ...baseAggregationStages,
+        { $sort: { messageCount: sortOrder === 'asc' ? 1 : -1 } },
+        { $skip: skip },
+        { $limit: limit }
+      ];
+
+      [chats, total] = await Promise.all([
+        ChatSession.aggregate(aggregationPipeline),
+        ChatSession.countDocuments(query),
+      ]);
+    } else {
+      // Sort by other fields
+      const aggregationPipeline: any[] = [
+        ...baseAggregationStages,
+        { $sort: sortOptions },
+        { $skip: skip },
+        { $limit: limit }
+      ];
+
+      [chats, total] = await Promise.all([
+        ChatSession.aggregate(aggregationPipeline),
+        ChatSession.countDocuments(query),
+      ]);
+    }
+
+    // Populate country information for all chats from UserSession
+    const chatsWithCountry = await Promise.all(
+      chats.map(async (chat: any) => {
+        const userIps = chat.users.map((u: any) => u.ip);
+        const users = await UserSession.find({
+          ip: { $in: userIps },
+        }).lean();
+        
+        // Get the first user's country for display
+        const country = users.length > 0 && users[0].location?.country 
+          ? users[0].location.country 
+          : 'Unknown';
+        
+        return {
+          ...chat,
+          country,
+        };
+      })
+    );
 
     // If country filter is specified, filter by user location
-    let filteredChats = chats;
+    let filteredChats = chatsWithCountry;
     if (country) {
-      const chatsWithLocation = await Promise.all(
-        chats.map(async (chat) => {
-          const userIps = chat.users.map((u) => u.ip);
-          const users = await UserSession.find({
-            ip: { $in: userIps },
-            'location.country': country,
-          });
-          return users.length > 0 ? chat : null;
-        }),
+      filteredChats = chatsWithCountry.filter((chat: any) => 
+        chat.country && chat.country.toLowerCase() === country.toLowerCase()
       );
-      filteredChats = chatsWithLocation.filter((c) => c !== null) as any[];
     }
 
     return {
@@ -384,6 +451,324 @@ export class ChatManagementService {
       messages: chat.messages || [],
       totalMessages: chat.messages?.length || 0,
     };
+  }
+
+  // 📊 Get detailed analytics for a specific chat
+  async getChatMessageAnalytics(sessionId: string) {
+    const chat = await ChatSession.findOne({ sessionId })
+      .select('messages users sessionId chatType startedAt endedAt duration status')
+      .lean();
+
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+
+    const messages = chat.messages || [];
+    
+    if (messages.length === 0) {
+      return {
+        sessionId: chat.sessionId,
+        chatType: chat.chatType,
+        status: chat.status,
+        totalMessages: 0,
+        overview: {
+          chatDuration: chat.duration || 0,
+          startedAt: chat.startedAt,
+          endedAt: chat.endedAt,
+          totalMessages: 0,
+          users: chat.users,
+        },
+        messageStatistics: {},
+        timingAnalysis: {},
+        userEngagement: {},
+        conversationFlow: [],
+        contentAnalysis: {},
+      };
+    }
+
+    // Sort messages by timestamp
+    const sortedMessages = [...messages].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    // 1. MESSAGE STATISTICS
+    const messageStats = {
+      total: messages.length,
+      byUser: {} as Record<string, number>,
+      averageLength: 0,
+      totalCharacters: 0,
+      longestMessage: { length: 0, from: '', text: '', timestamp: new Date() },
+      shortestMessage: { length: Infinity, from: '', text: '', timestamp: new Date() },
+    };
+
+    messages.forEach((msg) => {
+      // Count by user
+      messageStats.byUser[msg.from] = (messageStats.byUser[msg.from] || 0) + 1;
+      
+      // Character count
+      const msgLength = msg.text?.length || 0;
+      messageStats.totalCharacters += msgLength;
+      
+      // Longest/shortest
+      if (msgLength > messageStats.longestMessage.length) {
+        messageStats.longestMessage = {
+          length: msgLength,
+          from: msg.from,
+          text: msg.text,
+          timestamp: msg.timestamp,
+        };
+      }
+      if (msgLength < messageStats.shortestMessage.length && msgLength > 0) {
+        messageStats.shortestMessage = {
+          length: msgLength,
+          from: msg.from,
+          text: msg.text,
+          timestamp: msg.timestamp,
+        };
+      }
+    });
+
+    messageStats.averageLength = messageStats.totalCharacters / messages.length;
+
+    // 2. TIMING ANALYSIS (Time differences between messages)
+    const timingAnalysis = {
+      averageResponseTime: 0, // in seconds
+      responseTimeByUser: {} as Record<string, { total: number; count: number; average: number }>,
+      longestGap: { duration: 0, from: null as any, to: null as any },
+      shortestGap: { duration: Infinity, from: null as any, to: null as any },
+      totalGaps: 0,
+      messagesPerMinute: 0,
+      messagesPerHour: 0,
+      messageIntervals: [] as number[], // All intervals in seconds
+    };
+
+    let totalResponseTime = 0;
+    let responseCount = 0;
+
+    for (let i = 1; i < sortedMessages.length; i++) {
+      const prevMsg = sortedMessages[i - 1];
+      const currMsg = sortedMessages[i];
+      
+      const timeDiff = (new Date(currMsg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime()) / 1000; // seconds
+      
+      timingAnalysis.messageIntervals.push(timeDiff);
+      
+      // Track gaps
+      if (timeDiff > timingAnalysis.longestGap.duration) {
+        timingAnalysis.longestGap = {
+          duration: timeDiff,
+          from: prevMsg,
+          to: currMsg,
+        };
+      }
+      
+      if (timeDiff < timingAnalysis.shortestGap.duration && timeDiff > 0) {
+        timingAnalysis.shortestGap = {
+          duration: timeDiff,
+          from: prevMsg,
+          to: currMsg,
+        };
+      }
+      
+      // Calculate response time (when different users reply to each other)
+      if (prevMsg.from !== currMsg.from) {
+        totalResponseTime += timeDiff;
+        responseCount++;
+        
+        // Track per user
+        if (!timingAnalysis.responseTimeByUser[currMsg.from]) {
+          timingAnalysis.responseTimeByUser[currMsg.from] = {
+            total: 0,
+            count: 0,
+            average: 0,
+          };
+        }
+        timingAnalysis.responseTimeByUser[currMsg.from].total += timeDiff;
+        timingAnalysis.responseTimeByUser[currMsg.from].count++;
+      }
+    }
+
+    // Calculate averages
+    if (responseCount > 0) {
+      timingAnalysis.averageResponseTime = totalResponseTime / responseCount;
+    }
+
+    // Calculate average response time per user
+    Object.keys(timingAnalysis.responseTimeByUser).forEach((userId) => {
+      const userData = timingAnalysis.responseTimeByUser[userId];
+      userData.average = userData.total / userData.count;
+    });
+
+    // Calculate message frequency
+    if (chat.startedAt && chat.endedAt) {
+      const chatDurationMs = new Date(chat.endedAt).getTime() - new Date(chat.startedAt).getTime();
+      const chatDurationMinutes = chatDurationMs / (1000 * 60);
+      const chatDurationHours = chatDurationMinutes / 60;
+      
+      timingAnalysis.messagesPerMinute = messages.length / chatDurationMinutes;
+      timingAnalysis.messagesPerHour = messages.length / chatDurationHours;
+    }
+
+    timingAnalysis.totalGaps = timingAnalysis.messageIntervals.length;
+
+    // 3. USER ENGAGEMENT ANALYSIS
+    const userEngagement = {
+      firstMessage: sortedMessages[0],
+      lastMessage: sortedMessages[sortedMessages.length - 1],
+      initiator: sortedMessages[0].from,
+      closer: sortedMessages[sortedMessages.length - 1].from,
+      dominance: {} as Record<string, number>, // Percentage of messages per user
+      responseRate: {} as Record<string, number>, // How fast each user responds on average
+      averageMessageLengthByUser: {} as Record<string, number>,
+      participationScore: {} as Record<string, { messages: number; characters: number; percentage: number }>,
+    };
+
+    // Calculate dominance (% of messages)
+    Object.keys(messageStats.byUser).forEach((userId) => {
+      userEngagement.dominance[userId] = (messageStats.byUser[userId] / messages.length) * 100;
+    });
+
+    // Calculate average message length and participation per user
+    const userCharacters: Record<string, number> = {};
+    messages.forEach((msg) => {
+      userCharacters[msg.from] = (userCharacters[msg.from] || 0) + (msg.text?.length || 0);
+    });
+
+    Object.keys(messageStats.byUser).forEach((userId) => {
+      userEngagement.averageMessageLengthByUser[userId] = 
+        userCharacters[userId] / messageStats.byUser[userId];
+      
+      userEngagement.participationScore[userId] = {
+        messages: messageStats.byUser[userId],
+        characters: userCharacters[userId],
+        percentage: (messageStats.byUser[userId] / messages.length) * 100,
+      };
+    });
+
+    // Response rate from timing analysis
+    Object.keys(timingAnalysis.responseTimeByUser).forEach((userId) => {
+      userEngagement.responseRate[userId] = timingAnalysis.responseTimeByUser[userId].average;
+    });
+
+    // 4. CONVERSATION FLOW (Timeline of activity)
+    const conversationFlow: any[] = [];
+    
+    // Group messages by time windows (e.g., 5-minute intervals)
+    const timeWindowMinutes = 5;
+    let currentWindow: any = null;
+    
+    sortedMessages.forEach((msg, idx) => {
+      const msgTime = new Date(msg.timestamp).getTime();
+      
+      if (!currentWindow) {
+        currentWindow = {
+          startTime: msg.timestamp,
+          endTime: new Date(msgTime + timeWindowMinutes * 60 * 1000),
+          messages: [msg],
+          messageCount: 1,
+          users: new Set([msg.from]),
+        };
+      } else {
+        const windowEndTime = new Date(currentWindow.endTime).getTime();
+        
+        if (msgTime <= windowEndTime) {
+          // Add to current window
+          currentWindow.messages.push(msg);
+          currentWindow.messageCount++;
+          currentWindow.users.add(msg.from);
+        } else {
+          // Save current window and start new one
+          conversationFlow.push({
+            startTime: currentWindow.startTime,
+            endTime: currentWindow.endTime,
+            messageCount: currentWindow.messageCount,
+            users: Array.from(currentWindow.users),
+            intensity: currentWindow.messageCount / timeWindowMinutes, // messages per minute
+          });
+          
+          currentWindow = {
+            startTime: msg.timestamp,
+            endTime: new Date(msgTime + timeWindowMinutes * 60 * 1000),
+            messages: [msg],
+            messageCount: 1,
+            users: new Set([msg.from]),
+          };
+        }
+      }
+      
+      // Push last window
+      if (idx === sortedMessages.length - 1 && currentWindow) {
+        conversationFlow.push({
+          startTime: currentWindow.startTime,
+          endTime: currentWindow.endTime,
+          messageCount: currentWindow.messageCount,
+          users: Array.from(currentWindow.users),
+          intensity: currentWindow.messageCount / timeWindowMinutes,
+        });
+      }
+    });
+
+    // 5. CONTENT ANALYSIS
+    const contentAnalysis = {
+      totalWords: 0,
+      averageWordsPerMessage: 0,
+      wordsByUser: {} as Record<string, number>,
+      messageDistribution: {
+        veryShort: 0,  // < 10 chars
+        short: 0,       // 10-50 chars
+        medium: 0,      // 50-150 chars
+        long: 0,        // 150-300 chars
+        veryLong: 0,    // > 300 chars
+      },
+    };
+
+    messages.forEach((msg) => {
+      const text = msg.text || '';
+      const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+      
+      contentAnalysis.totalWords += wordCount;
+      contentAnalysis.wordsByUser[msg.from] = (contentAnalysis.wordsByUser[msg.from] || 0) + wordCount;
+      
+      // Categorize by length
+      const length = text.length;
+      if (length < 10) contentAnalysis.messageDistribution.veryShort++;
+      else if (length < 50) contentAnalysis.messageDistribution.short++;
+      else if (length < 150) contentAnalysis.messageDistribution.medium++;
+      else if (length < 300) contentAnalysis.messageDistribution.long++;
+      else contentAnalysis.messageDistribution.veryLong++;
+    });
+
+    contentAnalysis.averageWordsPerMessage = contentAnalysis.totalWords / messages.length;
+
+    return {
+      sessionId: chat.sessionId,
+      chatType: chat.chatType,
+      status: chat.status,
+      overview: {
+        chatDuration: chat.duration || 0,
+        startedAt: chat.startedAt,
+        endedAt: chat.endedAt,
+        totalMessages: messages.length,
+        users: chat.users,
+      },
+      messageStatistics: messageStats,
+      timingAnalysis: {
+        ...timingAnalysis,
+        averageResponseTimeFormatted: this.formatDuration(timingAnalysis.averageResponseTime),
+        longestGapFormatted: this.formatDuration(timingAnalysis.longestGap.duration),
+        shortestGapFormatted: this.formatDuration(timingAnalysis.shortestGap.duration),
+      },
+      userEngagement,
+      conversationFlow,
+      contentAnalysis,
+    };
+  }
+
+  // Helper function to format duration
+  private formatDuration(seconds: number): string {
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+    return `${Math.floor(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;
   }
 }
 
