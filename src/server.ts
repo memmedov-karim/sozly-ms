@@ -98,7 +98,7 @@ app.get('/health', (req, res) => {
 // Public API routes
 app.use(optionRouter);
 app.use(reportRouter);
-app.use('/api/ip-ban', ipBanRouter);
+app.use('/api/ban', ipBanRouter);
 
 // Authentication routes (public)
 app.use('/api/auth', authRouter);
