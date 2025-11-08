@@ -2,22 +2,11 @@ import { Request } from "express";
 import { COMMA, EMPTY } from "../constants/character";
 
 export function getClientIp(source: Request): string {
-  // Debug logging (remove in production after fixing)
-  console.log("=== IP Detection Debug ===");
-  console.log("Headers:", {
-    "x-forwarded-for": source.headers["x-forwarded-for"],
-    "x-real-ip": source.headers["x-real-ip"],
-    "cf-connecting-ip": source.headers["cf-connecting-ip"],
-  });
-  console.log("req.ip:", source.ip);
-  console.log("socket.remoteAddress:", source.socket?.remoteAddress);
-  console.log("========================");
 
-  // Try multiple common proxy headers in order of reliability
   const headers = [
     "x-forwarded-for",
     "x-real-ip",
-    "cf-connecting-ip", // Cloudflare
+    "cf-connecting-ip",
     "x-client-ip",
     "x-cluster-client-ip",
     "forwarded-for",
@@ -53,7 +42,7 @@ export function getClientIp(source: Request): string {
 
   // If all else fails, return empty
   console.log("WARNING: Could not determine client IP!");
-  return EMPTY;
+  return "::1";
 }
 
 function normalizeIp(ip: string): string {

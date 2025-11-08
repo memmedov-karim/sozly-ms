@@ -8,6 +8,7 @@ import { createServer } from 'http';
 import { DatabaseConfig } from './config/database';
 import optionRouter from './router/OptionRouter';
 import reportRouter from './router/ReportRouter';
+import ipBanRouter from './router/IPBanRouter';
 
 // Admin Panel Routers
 import authRouter from './router/AuthRouter';
@@ -97,6 +98,7 @@ app.get('/health', (req, res) => {
 // Public API routes
 app.use(optionRouter);
 app.use(reportRouter);
+app.use('/api/ip-ban', ipBanRouter);
 
 // Authentication routes (public)
 app.use('/api/auth', authRouter);
