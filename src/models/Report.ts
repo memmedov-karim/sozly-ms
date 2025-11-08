@@ -5,6 +5,10 @@ export interface IReport extends Document {
   reporterIp: string;
   reportedIp: string;
   message: string;
+  status: 'pending' | 'resolved';
+  resolvedBy?: string;
+  resolvedAt?: Date;
+  adminNotes?: string;
 }
 
 const ReportSchema = new Schema<IReport>(
@@ -13,6 +17,15 @@ const ReportSchema = new Schema<IReport>(
     reporterIp: { type: String },
     reportedIp: { type: String },
     message: { type: String },
+    status: { 
+      type: String, 
+      enum: ['pending', 'resolved'], 
+      default: 'pending',
+      index: true 
+    },
+    resolvedBy: { type: String },
+    resolvedAt: { type: Date },
+    adminNotes: { type: String },
   },
   {
     timestamps: true,

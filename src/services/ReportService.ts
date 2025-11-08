@@ -10,7 +10,11 @@ export async function save(report: ReportBody, reporterIp: string): Promise<void
       'There is not ChatSession with given sessionId: ' + report.sessionId,
     );
   const users = currentChat.users;
-  const reportedIp = users.filter((user) => user.ip !== reporterIp)[0]?.ip;
+  var reportedIp = reporterIp;
+  const filteredUsers = users.filter((user) => user.ip !== reporterIp);
+  if(filteredUsers.length > 0) {
+    reportedIp = filteredUsers[0].ip;
+  }
   const rprt = new Report({
     sessionId: report.sessionId,
     reporterIp,

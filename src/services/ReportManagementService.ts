@@ -11,6 +11,7 @@ export class ReportManagementService {
     dateTo?: string;
     reportedIp?: string;
     reporterIp?: string;
+    status?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }) {
@@ -21,6 +22,7 @@ export class ReportManagementService {
       dateTo,
       reportedIp,
       reporterIp,
+      status,
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = params;
@@ -33,6 +35,10 @@ export class ReportManagementService {
 
     if (reporterIp) {
       query.reporterIp = reporterIp;
+    }
+
+    if (status) {
+      query.status = status;
     }
 
     if (dateFrom || dateTo) {
@@ -243,6 +249,43 @@ export class ReportManagementService {
         count: item.count,
       })),
       period: `${days} days`,
+    };
+  }
+
+  // Update report status
+  async updateReportStatus(
+    reportId: string,
+    status: 'pending' | 'resolved',
+    adminId: string,
+    adminNotes?: string
+  ) {
+    const updateData: any = {
+      status,
+      resolvedBy: adminId,
+    };
+
+    if (status === 'resolved') {
+      updateData.resolvedAt = new Date();
+    }
+
+    if (adminNotes) {
+      updateData.adminNotes = adminNotes;
+    }
+
+    const report = await Report.findByIdAndUpdate(
+      reportId,
+      updateData,
+      { new: true }
+    );
+
+    if (!report) {
+      throw new Error('Report not found');
+    }
+
+    return {
+      success: true,
+      message: `Report status updated to ${status}`,
+      report,
     };
   }
 

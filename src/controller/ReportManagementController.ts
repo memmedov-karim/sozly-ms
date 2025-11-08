@@ -12,6 +12,7 @@ export class ReportManagementController {
         dateTo,
         reportedIp,
         reporterIp,
+        status,
         sortBy,
         sortOrder,
       } = req.query;
@@ -23,6 +24,7 @@ export class ReportManagementController {
         dateTo: dateTo as string,
         reportedIp: reportedIp as string,
         reporterIp: reporterIp as string,
+        status: status as string,
         sortBy: sortBy as string,
         sortOrder: sortOrder as 'asc' | 'desc',
       });
@@ -72,6 +74,37 @@ export class ReportManagementController {
       res.json({
         success: true,
         data: reports,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /api/admin/reports/:reportId/status
+  async updateReportStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { reportId } = req.params;
+      const { status, adminNotes } = req.body;
+      const adminId = (req as any).admin?.id || (req as any).admin?._id || 'admin';
+
+      if (!status || !['pending', 'resolved'].includes(status)) {
+        res.status(400).json({
+          success: false,
+          message: 'Valid status (pending or resolved) is required',
+        });
+        return;
+      }
+
+      const result = await ReportManagementService.updateReportStatus(
+        reportId,
+        status,
+        adminId,
+        adminNotes
+      );
+      
+      res.json({
+        success: true,
+        data: result,
       });
     } catch (error) {
       next(error);
