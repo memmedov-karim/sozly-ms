@@ -11,6 +11,7 @@ router.get('/country/distribution', ChatManagementController.getChatsByCountry);
 router.get('/peak-hours', ChatManagementController.getChatPeakHours);
 router.get('/:sessionId', ChatManagementController.getChatDetails);
 router.get('/:sessionId/messages', ChatManagementController.getChatMessages);
+router.get('/:sessionId/analytics', ChatManagementController.getChatMessageAnalytics);
 
 export default router;
 
