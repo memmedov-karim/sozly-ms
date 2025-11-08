@@ -17,3 +17,4 @@ router.post('/logout', authenticate, AuthController.logout.bind(AuthController))
 export default router;
 
 
+

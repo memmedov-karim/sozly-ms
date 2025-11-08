@@ -96,3 +96,4 @@ AdminSchema.methods.toJSON = function () {
 export default mongoose.model<IAdmin>('Admin', AdminSchema);
 
 
+
