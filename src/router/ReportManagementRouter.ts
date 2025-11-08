@@ -10,6 +10,7 @@ router.get('/recent', ReportManagementController.getRecentReports);
 router.get('/timeseries', ReportManagementController.getReportsOverTime);
 router.get('/user/:ip', ReportManagementController.getReportsByUser);
 router.get('/:reportId', ReportManagementController.getReportDetails);
+router.patch('/:reportId/status', ReportManagementController.updateReportStatus);
 router.delete('/:reportId', ReportManagementController.deleteReport);
 router.post('/bulk-delete', ReportManagementController.bulkDeleteReports);
 
