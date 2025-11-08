@@ -335,6 +335,32 @@ export interface TopicAnalytics {
   byChat: Array<{ topic: string; chatCount: number }>;
 }
 
+export interface UserAgeAnalytics {
+  ageDistribution: Record<string, number>;
+  onlineAgeDistribution: Record<string, number>;
+  averageAge: number;
+  totalUsers: number;
+  onlineUsers: number;
+}
+
+export interface GenderSearchAnalytics {
+  preferredGenderDistribution: Record<string, number>;
+  preferencesByUserGender: Array<{
+    userGender: string;
+    searchingFor: string;
+    count: number;
+  }>;
+  onlinePreferences: Record<string, number>;
+}
+
+export interface AgeSearchAnalytics {
+  ageSearchDistribution: Record<string, number>;
+  onlineAgeSearchDistribution: Record<string, number>;
+  byUserAge: Record<string, Record<string, number>>;
+  totalUsers: number;
+  onlineUsers: number;
+}
+
 // API Response Types
 export interface AdminApiResponse<T> {
   success: boolean;

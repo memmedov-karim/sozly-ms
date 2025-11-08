@@ -14,6 +14,18 @@ router.get('/peak-times', AnalyticsController.getPeakUsageTimes);
 router.get('/languages', AnalyticsController.getLanguageAnalytics);
 router.get('/gender', AnalyticsController.getGenderAnalytics);
 router.get('/topics', AnalyticsController.getTopicAnalytics);
+router.get('/user-age', AnalyticsController.getUserAgeAnalytics);
+router.get('/gender-search', AnalyticsController.getGenderSearchAnalytics);
+router.get('/age-search', AnalyticsController.getAgeSearchAnalytics);
+
+// Advanced Analytics Routes
+router.get('/match-success', AnalyticsController.getMatchSuccessAnalytics);
+router.get('/conversation-quality', AnalyticsController.getConversationQualityMetrics);
+router.get('/user-engagement', AnalyticsController.getUserEngagementMetrics);
+router.get('/demographic-matching', AnalyticsController.getDemographicMatchingMatrix);
+router.get('/rejection-report', AnalyticsController.getRejectionReportAnalytics);
+router.get('/voice-vs-text', AnalyticsController.getVoiceVsTextAnalytics);
+router.get('/activity-heatmap', AnalyticsController.getActivityHeatmapData);
 
 export default router;
 
