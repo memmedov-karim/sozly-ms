@@ -3,7 +3,6 @@ import ReportManagementService from '../services/ReportManagementService';
 import { getClientIp } from '../utils/ip';
 
 export class IPBanController {
-  // 🆕 GET /api/ip-ban/check - Public endpoint to check if IP is banned
   async checkIPBan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Get IP from request using the utility method
@@ -30,7 +29,6 @@ export class IPBanController {
     }
   }
 
-  // 🆕 GET /api/ip-ban/check/:ip - Check specific IP (for admin or testing)
   async checkSpecificIP(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { ip } = req.params;
