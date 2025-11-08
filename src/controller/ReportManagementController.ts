@@ -176,6 +176,127 @@ export class ReportManagementController {
       next(error);
     }
   }
+
+  // 🆕 GET /api/admin/reports/grouped?page=1&limit=20&status=pending
+  async getGroupedReports(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { page, limit, status, sortBy, sortOrder } = req.query;
+
+      const result = await ReportManagementService.getGroupedReports({
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+        status: status as string,
+        sortBy: sortBy as 'reportCount' | 'lastReportedAt',
+        sortOrder: sortOrder as 'asc' | 'desc',
+      });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // 🆕 GET /api/admin/reports/by-ip/:reportedIp
+  async getReportsByReportedIp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { reportedIp } = req.params;
+      const result = await ReportManagementService.getReportsByReportedIp(reportedIp);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // 🆕 POST /api/admin/reports/ban-ip
+  async banIP(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { ip, banDuration, reason, reportedIp, relatedReportIds } = req.body;
+      const adminId = (req as any).admin?.id || (req as any).admin?._id || 'admin';
+
+      if (!ip) {
+        res.status(400).json({
+          success: false,
+          message: 'IP address is required',
+        });
+        return;
+      }
+
+      if (!banDuration || typeof banDuration !== 'number') {
+        res.status(400).json({
+          success: false,
+          message: 'Valid ban duration (in minutes) is required',
+        });
+        return;
+      }
+
+      const result = await ReportManagementService.banIP({
+        ip,
+        adminId,
+        banDuration,
+        reason,
+        reportedIp,
+        relatedReportIds,
+      });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // 🆕 GET /api/admin/reports/active-bans?page=1&limit=20
+  async getActiveBans(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { page, limit } = req.query;
+
+      const result = await ReportManagementService.getActiveBans({
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // 🆕 POST /api/admin/reports/unban-ip
+  async unbanIP(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { ip } = req.body;
+      const adminId = (req as any).admin?.id || (req as any).admin?._id || 'admin';
+
+      if (!ip) {
+        res.status(400).json({
+          success: false,
+          message: 'IP address is required',
+        });
+        return;
+      }
+
+      const result = await ReportManagementService.unbanIP(ip, adminId);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new ReportManagementController();

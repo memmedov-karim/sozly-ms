@@ -1,6 +1,7 @@
 import Report from '../models/Report';
 import ChatSession from '../models/ChatSession';
 import UserSession from '../models/UserSession';
+import IPBan from '../models/IPBan';
 
 export class ReportManagementService {
   // 🚨 Get all reports with pagination and filters
@@ -312,6 +313,290 @@ export class ReportManagementService {
     return {
       deletedCount: result.deletedCount,
       success: result.deletedCount > 0,
+    };
+  }
+
+  // 🆕 Get grouped reports by reportedIp with count
+  async getGroupedReports(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    sortBy?: 'reportCount' | 'lastReportedAt';
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      sortBy = 'reportCount',
+      sortOrder = 'desc',
+    } = params;
+
+    const matchStage: any = {};
+    if (status) {
+      matchStage.status = status;
+    }
+
+    const pipeline: any[] = [
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$reportedIp',
+          reportCount: { $sum: 1 },
+          lastReportedAt: { $max: '$createdAt' },
+          firstReportedAt: { $min: '$createdAt' },
+          pendingCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] },
+          },
+          resolvedCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] },
+          },
+          reportIds: { $push: '$_id' },
+          messages: { $push: '$message' },
+        },
+      },
+      {
+        $sort: {
+          [sortBy === 'reportCount' ? 'reportCount' : 'lastReportedAt']:
+            sortOrder === 'asc' ? 1 : -1,
+        },
+      },
+    ];
+
+    // Get total count
+    const totalPipeline = [...pipeline, { $count: 'total' }];
+    const totalResult = await Report.aggregate(totalPipeline);
+    const total = totalResult.length > 0 ? totalResult[0].total : 0;
+
+    // Add pagination
+    pipeline.push({ $skip: (page - 1) * limit });
+    pipeline.push({ $limit: limit });
+
+    const groupedReports = await Report.aggregate(pipeline);
+
+    // Check if each IP is banned
+    const ipList = groupedReports.map((group) => group._id);
+    const bans = await IPBan.find({
+      ip: { $in: ipList },
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+    }).lean();
+
+    const banMap = new Map(bans.map((ban) => [ban.ip, ban]));
+
+    const enrichedReports = groupedReports.map((group) => ({
+      reportedIp: group._id,
+      reportCount: group.reportCount,
+      pendingCount: group.pendingCount,
+      resolvedCount: group.resolvedCount,
+      lastReportedAt: group.lastReportedAt,
+      firstReportedAt: group.firstReportedAt,
+      isBanned: banMap.has(group._id),
+      banDetails: banMap.get(group._id) || null,
+    }));
+
+    return {
+      groupedReports: enrichedReports,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // 🆕 Get all reports for a specific reportedIp with messages
+  async getReportsByReportedIp(reportedIp: string) {
+    const reports = await Report.find({ reportedIp })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (reports.length === 0) {
+      throw new Error('No reports found for this IP');
+    }
+
+    // Get all chat sessions for these reports
+    const sessionIds = reports.map((r) => r.sessionId);
+    const chatSessions = await ChatSession.find({
+      sessionId: { $in: sessionIds },
+    }).lean();
+
+    const sessionMap = new Map(
+      chatSessions.map((session) => [session.sessionId, session]),
+    );
+
+    // Get user info
+    const reportedUser = await UserSession.findOne({ ip: reportedIp }).lean();
+
+    // Check if IP is currently banned
+    const activeBan = await IPBan.findOne({
+      ip: reportedIp,
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+    }).lean();
+
+    // Enrich reports with chat messages
+    const enrichedReports = reports.map((report) => {
+      const session = sessionMap.get(report.sessionId);
+      return {
+        ...report,
+        chatMessages: session?.messages || [],
+        chatType: session?.chatType,
+        sessionStartedAt: session?.startedAt,
+        sessionEndedAt: session?.endedAt,
+      };
+    });
+
+    return {
+      reportedIp,
+      reportedUser,
+      totalReports: reports.length,
+      reports: enrichedReports,
+      isBanned: !!activeBan,
+      activeBan,
+    };
+  }
+
+  // 🆕 Ban an IP address
+  async banIP(params: {
+    ip: string;
+    adminId: string;
+    banDuration: number; // in minutes
+    reason?: string;
+    reportedIp?: string;
+    relatedReportIds?: string[];
+  }) {
+    const { ip, adminId, banDuration, reason, reportedIp, relatedReportIds } =
+      params;
+
+    // Check if IP is already banned and active
+    const existingBan = await IPBan.findOne({
+      ip,
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (existingBan) {
+      throw new Error('IP is already banned');
+    }
+
+    const bannedAt = new Date();
+    const expiresAt = new Date(bannedAt.getTime() + banDuration * 60 * 1000);
+
+    const ban = await IPBan.create({
+      ip,
+      bannedBy: adminId,
+      reason,
+      banDuration,
+      bannedAt,
+      expiresAt,
+      isActive: true,
+      reportedIp,
+      relatedReportIds,
+    });
+
+    return {
+      success: true,
+      message: 'IP banned successfully',
+      ban,
+    };
+  }
+
+  // 🆕 Check if IP is banned and return details
+  async checkIPBanStatus(ip: string) {
+    const now = new Date();
+
+    // Find active ban
+    const activeBan = await IPBan.findOne({
+      ip,
+      isActive: true,
+      expiresAt: { $gt: now },
+    }).lean();
+
+    if (!activeBan) {
+      return {
+        isBanned: false,
+        ip,
+      };
+    }
+
+    // Calculate time remaining
+    const timeLeftMs = activeBan.expiresAt.getTime() - now.getTime();
+    const timeLeftSeconds = Math.floor(timeLeftMs / 1000);
+    const timeLeftMinutes = Math.floor(timeLeftSeconds / 60);
+    const timeLeftHours = Math.floor(timeLeftMinutes / 60);
+    const timeLeftDays = Math.floor(timeLeftHours / 24);
+
+    let timeLeftFormatted: string;
+    if (timeLeftDays > 0) {
+      timeLeftFormatted = `${timeLeftDays} day${timeLeftDays > 1 ? 's' : ''}`;
+    } else if (timeLeftHours > 0) {
+      timeLeftFormatted = `${timeLeftHours} hour${timeLeftHours > 1 ? 's' : ''}`;
+    } else if (timeLeftMinutes > 0) {
+      timeLeftFormatted = `${timeLeftMinutes} minute${timeLeftMinutes > 1 ? 's' : ''}`;
+    } else {
+      timeLeftFormatted = `${timeLeftSeconds} second${timeLeftSeconds > 1 ? 's' : ''}`;
+    }
+
+    return {
+      isBanned: true,
+      ip,
+      banDetails: {
+        bannedAt: activeBan.bannedAt,
+        expiresAt: activeBan.expiresAt,
+        reason: activeBan.reason,
+        bannedBy: activeBan.bannedBy,
+        timeLeftSeconds,
+        timeLeftMinutes,
+        timeLeftFormatted,
+      },
+    };
+  }
+
+  // 🆕 Get all active bans
+  async getActiveBans(params: { page?: number; limit?: number }) {
+    const { page = 1, limit = 20 } = params;
+
+    const query = {
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [bans, total] = await Promise.all([
+      IPBan.find(query).sort({ bannedAt: -1 }).skip(skip).limit(limit).lean(),
+      IPBan.countDocuments(query),
+    ]);
+
+    return {
+      bans,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // 🆕 Unban an IP
+  async unbanIP(ip: string, adminId: string) {
+    const ban = await IPBan.findOneAndUpdate(
+      { ip, isActive: true, expiresAt: { $gt: new Date() } },
+      { isActive: false },
+      { new: true },
+    );
+
+    if (!ban) {
+      throw new Error('No active ban found for this IP');
+    }
+
+    return {
+      success: true,
+      message: 'IP unbanned successfully',
+      ban,
     };
   }
 }
