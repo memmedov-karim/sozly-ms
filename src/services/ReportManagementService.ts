@@ -4,7 +4,6 @@ import UserSession from '../models/UserSession';
 import IPBan from '../models/IPBan';
 
 export class ReportManagementService {
-  // 🚨 Get all reports with pagination and filters
   async getAllReports(params: {
     page?: number;
     limit?: number;
@@ -503,13 +502,12 @@ export class ReportManagementService {
     };
   }
 
-  // 🆕 Check if IP is banned and return details
-  async checkIPBanStatus(ip: string) {
+  async checkIPBanStatus(uniqueUserId: string) {
     const now = new Date();
 
     // Find active ban
     const activeBan = await IPBan.findOne({
-      ip,
+      uniqueUserId,
       isActive: true,
       expiresAt: { $gt: now },
     }).lean();
@@ -517,7 +515,7 @@ export class ReportManagementService {
     if (!activeBan) {
       return {
         isBanned: false,
-        ip,
+        userId: uniqueUserId,
       };
     }
 
@@ -541,7 +539,7 @@ export class ReportManagementService {
 
     return {
       isBanned: true,
-      ip,
+      userId:uniqueUserId,
       banDetails: {
         bannedAt: activeBan.bannedAt,
         expiresAt: activeBan.expiresAt,
@@ -582,15 +580,15 @@ export class ReportManagementService {
   }
 
   // 🆕 Unban an IP
-  async unbanIP(ip: string, adminId: string) {
+  async unbanIP(uniqueUserId: string, adminId: string) {
     const ban = await IPBan.findOneAndUpdate(
-      { ip, isActive: true, expiresAt: { $gt: new Date() } },
+      { uniqueUserId, isActive: true, expiresAt: { $gt: new Date() } },
       { isActive: false },
       { new: true },
     );
 
     if (!ban) {
-      throw new Error('No active ban found for this IP');
+      throw new Error('No active ban found for this user');
     }
 
     return {

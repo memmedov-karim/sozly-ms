@@ -3,6 +3,9 @@ import './env';
 import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
+
+import cookieParser from 'cookie-parser';
+
 import helmet from 'helmet';
 import { createServer } from 'http';
 import { DatabaseConfig } from './config/database';
@@ -30,7 +33,7 @@ const server = createServer(app);
 
 // Trust proxy if behind reverse proxy
 app.set('trust proxy', 1);
-
+app.use(cookieParser());
 // Debug logging
 console.log('Environment:', process.env.NODE_ENV);
 console.log('CORS Origins:', CORS_ORIGIN);

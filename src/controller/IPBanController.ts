@@ -6,6 +6,9 @@ export class IPBanController {
   async checkIPBan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Get IP from request using the utility method
+      const userId = req.cookies.sozly_unique_user_id;
+      console.log('userId', userId);
+
       const ip = getClientIp(req);
 
       console.log('ip', ip);

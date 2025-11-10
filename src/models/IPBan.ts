@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IIPBan extends Document {
   ip: string;
+  uniqueUserId: string; // Unique User ID
   bannedBy: string; // Admin ID
   reason?: string;
   banDuration: number; // Duration in minutes
@@ -15,6 +16,7 @@ export interface IIPBan extends Document {
 const IPBanSchema = new Schema<IIPBan>(
   {
     ip: { type: String, required: true, index: true },
+    uniqueUserId: { type: String, required: true, index: true },
     bannedBy: { type: String, required: true },
     reason: { type: String },
     banDuration: { type: Number, required: true }, // in minutes
