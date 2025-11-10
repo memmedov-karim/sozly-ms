@@ -6,7 +6,7 @@ export interface IMessage {
   timestamp: Date;
 }
 
-interface IChUser {
+export interface IChUser {
   id: string;
   ip: string;
   uniqueUserId?: string;
