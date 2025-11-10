@@ -3,9 +3,9 @@ import IPBanController from '../controller/IPBanController';
 
 const router = Router();
 
-// Public IP ban check routes
+// Public user ban check routes
 router.get('/check', IPBanController.checkIPBan);
-router.get('/check/:ip', IPBanController.checkSpecificIP);
+router.get('/check/:uniqueUserId', IPBanController.checkSpecificUser);
 
 export default router;
 
