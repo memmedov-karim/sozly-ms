@@ -36,3 +36,4 @@ IPBanSchema.index({ ip: 1, isActive: 1, expiresAt: 1 });
 
 export default mongoose.model<IIPBan>('IPBan', IPBanSchema);
 
+

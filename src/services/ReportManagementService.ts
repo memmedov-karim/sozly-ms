@@ -315,7 +315,7 @@ export class ReportManagementService {
     };
   }
 
-  // 🆕 Get grouped reports by reportedIp with count
+  // 🆕 Get grouped reports by uniqueUserId with count
   async getGroupedReports(params: {
     page?: number;
     limit?: number;
@@ -340,7 +340,8 @@ export class ReportManagementService {
       { $match: matchStage },
       {
         $group: {
-          _id: '$reportedIp',
+          _id: '$reportedUniqueUserId',
+          reportedIp: { $first: '$reportedIp' }, // Keep IP for reference
           reportCount: { $sum: 1 },
           lastReportedAt: { $max: '$createdAt' },
           firstReportedAt: { $min: '$createdAt' },
@@ -373,18 +374,19 @@ export class ReportManagementService {
 
     const groupedReports = await Report.aggregate(pipeline);
 
-    // Check if each IP is banned
-    const ipList = groupedReports.map((group) => group._id);
+    // Check if each uniqueUserId is banned
+    const userIdList = groupedReports.map((group) => group._id).filter(id => id);
     const bans = await IPBan.find({
-      ip: { $in: ipList },
+      uniqueUserId: { $in: userIdList },
       isActive: true,
       expiresAt: { $gt: new Date() },
     }).lean();
 
-    const banMap = new Map(bans.map((ban) => [ban.ip, ban]));
+    const banMap = new Map(bans.map((ban) => [ban.uniqueUserId, ban]));
 
     const enrichedReports = groupedReports.map((group) => ({
-      reportedIp: group._id,
+      uniqueUserId: group._id,
+      reportedIp: group.reportedIp, // Include IP for display
       reportCount: group.reportCount,
       pendingCount: group.pendingCount,
       resolvedCount: group.resolvedCount,
@@ -405,14 +407,14 @@ export class ReportManagementService {
     };
   }
 
-  // 🆕 Get all reports for a specific reportedIp with messages
-  async getReportsByReportedIp(reportedIp: string) {
-    const reports = await Report.find({ reportedIp })
+  // 🆕 Get all reports for a specific uniqueUserId with messages
+  async getReportsByUniqueUserId(uniqueUserId: string) {
+    const reports = await Report.find({ reportedUniqueUserId: uniqueUserId })
       .sort({ createdAt: -1 })
       .lean();
 
     if (reports.length === 0) {
-      throw new Error('No reports found for this IP');
+      throw new Error('No reports found for this user');
     }
 
     // Get all chat sessions for these reports
@@ -425,12 +427,13 @@ export class ReportManagementService {
       chatSessions.map((session) => [session.sessionId, session]),
     );
 
-    // Get user info
-    const reportedUser = await UserSession.findOne({ ip: reportedIp }).lean();
+    // Get user info (use the first report's IP as fallback)
+    const reportedIp = reports[0].reportedIp;
+    const reportedUser = reportedIp ? await UserSession.findOne({ ip: reportedIp }).lean() : null;
 
-    // Check if IP is currently banned
+    // Check if user is currently banned
     const activeBan = await IPBan.findOne({
-      ip: reportedIp,
+      uniqueUserId,
       isActive: true,
       expiresAt: { $gt: new Date() },
     }).lean();
@@ -448,6 +451,7 @@ export class ReportManagementService {
     });
 
     return {
+      uniqueUserId,
       reportedIp,
       reportedUser,
       totalReports: reports.length,
@@ -457,34 +461,36 @@ export class ReportManagementService {
     };
   }
 
-  // 🆕 Ban an IP address
-  async banIP(params: {
-    ip: string;
+  // 🆕 Ban a user by uniqueUserId
+  async banUser(params: {
+    uniqueUserId: string;
+    ip?: string; // Optional: for reference
     adminId: string;
     banDuration: number; // in minutes
     reason?: string;
     reportedIp?: string;
     relatedReportIds?: string[];
   }) {
-    const { ip, adminId, banDuration, reason, reportedIp, relatedReportIds } =
+    const { uniqueUserId, ip, adminId, banDuration, reason, reportedIp, relatedReportIds } =
       params;
 
-    // Check if IP is already banned and active
+    // Check if user is already banned and active
     const existingBan = await IPBan.findOne({
-      ip,
+      uniqueUserId,
       isActive: true,
       expiresAt: { $gt: new Date() },
     });
 
     if (existingBan) {
-      throw new Error('IP is already banned');
+      throw new Error('User is already banned');
     }
 
     const bannedAt = new Date();
     const expiresAt = new Date(bannedAt.getTime() + banDuration * 60 * 1000);
 
     const ban = await IPBan.create({
-      ip,
+      uniqueUserId,
+      ip: ip || '', // Store IP for reference if provided
       bannedBy: adminId,
       reason,
       banDuration,
@@ -497,7 +503,7 @@ export class ReportManagementService {
 
     return {
       success: true,
-      message: 'IP banned successfully',
+      message: 'User banned successfully',
       ban,
     };
   }

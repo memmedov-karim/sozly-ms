@@ -10,12 +10,12 @@ router.get('/recent', ReportManagementController.getRecentReports);
 router.get('/timeseries', ReportManagementController.getReportsOverTime);
 router.get('/user/:ip', ReportManagementController.getReportsByUser);
 
-// 🆕 New routes for grouped reports and IP banning
+// 🆕 New routes for grouped reports and user banning
 router.get('/grouped', ReportManagementController.getGroupedReports);
-router.get('/by-ip/:reportedIp', ReportManagementController.getReportsByReportedIp);
-router.post('/ban-ip', ReportManagementController.banIP);
+router.get('/by-userid/:uniqueUserId', ReportManagementController.getReportsByUniqueUserId);
+router.post('/ban-user', ReportManagementController.banUser);
 router.get('/active-bans', ReportManagementController.getActiveBans);
-router.post('/unban-ip', ReportManagementController.unbanIP);
+router.post('/unban-user', ReportManagementController.unbanUser);
 
 router.get('/:reportId', ReportManagementController.getReportDetails);
 router.patch('/:reportId/status', ReportManagementController.updateReportStatus);

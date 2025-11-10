@@ -5,23 +5,17 @@ import { getClientIp } from '../utils/ip';
 export class IPBanController {
   async checkIPBan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // Get IP from request using the utility method
-      const userId = req.cookies.sozly_unique_user_id;
-      console.log('userId', userId);
-
-      const ip = getClientIp(req);
-
-      console.log('ip', ip);
-
-      if (!ip) {
+      // Get uniqueUserId from cookies
+      const userId = req.cookies['sozly:x-user-id'];
+      if (!userId) {
         res.status(400).json({
           success: false,
-          message: 'Could not determine client IP',
+          message: 'Could not determine unique user ID',
         });
         return;
       }
 
-      const result = await ReportManagementService.checkIPBanStatus(ip);
+      const result = await ReportManagementService.checkIPBanStatus(userId);
 
       res.json({
         success: true,
@@ -32,19 +26,19 @@ export class IPBanController {
     }
   }
 
-  async checkSpecificIP(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async checkSpecificUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { ip } = req.params;
+      const { uniqueUserId } = req.params;
 
-      if (!ip) {
+      if (!uniqueUserId) {
         res.status(400).json({
           success: false,
-          message: 'IP address is required',
+          message: 'Unique User ID is required',
         });
         return;
       }
 
-      const result = await ReportManagementService.checkIPBanStatus(ip);
+      const result = await ReportManagementService.checkIPBanStatus(uniqueUserId);
 
       res.json({
         success: true,

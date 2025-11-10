@@ -4,6 +4,8 @@ export interface IReport extends Document {
   sessionId: string;
   reporterIp: string;
   reportedIp: string;
+  reporterUniqueUserId?: string; // Unique User ID of reporter
+  reportedUniqueUserId?: string; // Unique User ID of reported user
   message: string;
   status: 'pending' | 'resolved';
   resolvedBy?: string;
@@ -16,6 +18,8 @@ const ReportSchema = new Schema<IReport>(
     sessionId: { type: String, required: true, index: true },
     reporterIp: { type: String },
     reportedIp: { type: String },
+    reporterUniqueUserId: { type: String, index: true },
+    reportedUniqueUserId: { type: String, index: true },
     message: { type: String },
     status: { 
       type: String, 

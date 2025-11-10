@@ -199,11 +199,11 @@ export class ReportManagementController {
     }
   }
 
-  // 🆕 GET /api/admin/reports/by-ip/:reportedIp
-  async getReportsByReportedIp(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // 🆕 GET /api/admin/reports/by-userid/:uniqueUserId
+  async getReportsByUniqueUserId(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { reportedIp } = req.params;
-      const result = await ReportManagementService.getReportsByReportedIp(reportedIp);
+      const { uniqueUserId } = req.params;
+      const result = await ReportManagementService.getReportsByUniqueUserId(uniqueUserId);
 
       res.json({
         success: true,
@@ -214,16 +214,16 @@ export class ReportManagementController {
     }
   }
 
-  // 🆕 POST /api/admin/reports/ban-ip
-  async banIP(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // 🆕 POST /api/admin/reports/ban-user
+  async banUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { ip, banDuration, reason, reportedIp, relatedReportIds } = req.body;
+      const { uniqueUserId, ip, banDuration, reason, reportedIp, relatedReportIds } = req.body;
       const adminId = (req as any).admin?.id || (req as any).admin?._id || 'admin';
 
-      if (!ip) {
+      if (!uniqueUserId) {
         res.status(400).json({
           success: false,
-          message: 'IP address is required',
+          message: 'Unique User ID is required',
         });
         return;
       }
@@ -236,7 +236,8 @@ export class ReportManagementController {
         return;
       }
 
-      const result = await ReportManagementService.banIP({
+      const result = await ReportManagementService.banUser({
+        uniqueUserId,
         ip,
         adminId,
         banDuration,
@@ -273,21 +274,21 @@ export class ReportManagementController {
     }
   }
 
-  // 🆕 POST /api/admin/reports/unban-ip
-  async unbanIP(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // 🆕 POST /api/admin/reports/unban-user
+  async unbanUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { ip } = req.body;
+      const { uniqueUserId } = req.body;
       const adminId = (req as any).admin?.id || (req as any).admin?._id || 'admin';
 
-      if (!ip) {
+      if (!uniqueUserId) {
         res.status(400).json({
           success: false,
-          message: 'IP address is required',
+          message: 'Unique User ID is required',
         });
         return;
       }
 
-      const result = await ReportManagementService.unbanIP(ip, adminId);
+      const result = await ReportManagementService.unbanIP(uniqueUserId, adminId);
 
       res.json({
         success: true,

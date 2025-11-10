@@ -6,9 +6,10 @@ export interface IMessage {
   timestamp: Date;
 }
 
-export interface IChUser {
+interface IChUser {
   id: string;
   ip: string;
+  uniqueUserId?: string;
 }
 export interface IChatSession extends Document {
   sessionId: string;
@@ -31,6 +32,7 @@ const ChatSessionSchema = new Schema<IChatSession>(
       {
         id: { type: String, required: true },
         ip: { type: String, required: true },
+        uniqueUserId: { type: String },
       },
     ],
     startedAt: { type: Date, default: Date.now },
