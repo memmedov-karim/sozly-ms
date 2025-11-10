@@ -1,16 +1,19 @@
-import { Request, Response, NextFunction } from 'express';
-import ReportManagementService from '../services/ReportManagementService';
-import { getClientIp } from '../utils/ip';
+import { NextFunction, Request, Response } from "express";
+import ReportManagementService from "../services/ReportManagementService";
 
 export class IPBanController {
-  async checkIPBan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async checkIPBan(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       // Get uniqueUserId from cookies
-      const userId = req.cookies['sozly:x-user-id'];
+      const userId = req.header("x-user-id");
       if (!userId) {
         res.status(400).json({
           success: false,
-          message: 'Could not determine unique user ID',
+          message: "Could not determine unique user ID",
         });
         return;
       }
@@ -26,19 +29,24 @@ export class IPBanController {
     }
   }
 
-  async checkSpecificUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async checkSpecificUser(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { uniqueUserId } = req.params;
 
       if (!uniqueUserId) {
         res.status(400).json({
           success: false,
-          message: 'Unique User ID is required',
+          message: "Unique User ID is required",
         });
         return;
       }
 
-      const result = await ReportManagementService.checkIPBanStatus(uniqueUserId);
+      const result =
+        await ReportManagementService.checkIPBanStatus(uniqueUserId);
 
       res.json({
         success: true,
@@ -51,4 +59,3 @@ export class IPBanController {
 }
 
 export default new IPBanController();
-
