@@ -21,6 +21,7 @@ import chatManagementRouter from "./router/ChatManagementRouter";
 import dashboardRouter from "./router/DashboardRouter";
 import reportManagementRouter from "./router/ReportManagementRouter";
 import userManagementRouter from "./router/UserManagementRouter";
+import turnServerRouter from "./router/TurnServerRouter";
 
 import { CORS_ORIGIN } from "./constants/shared";
 import { globalErrorHandler } from "./middleware/errorHandler";
@@ -108,6 +109,7 @@ app.get("/health", (req, res) => {
 app.use(optionRouter);
 app.use(reportRouter);
 app.use("/api/ban", ipBanRouter);
+app.use("/api/turn", turnServerRouter);
 
 // Authentication routes (public)
 app.use("/api/auth", authRouter);
