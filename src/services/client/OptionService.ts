@@ -1,5 +1,5 @@
-import Option from "../models/Option";
-import { DatabaseConfig } from "../config/database";
+import Option from "../../models/Option";
+import { DatabaseConfig } from "../../config/database";
 
 export async function getUserPreferencesOptions(appLang: string) {
   const redisClient = DatabaseConfig.getInstance().getRedisClient();

@@ -1,6 +1,6 @@
 import {  Response, NextFunction } from "express";
-import { AuthRequest } from "../middleware/authMiddleware";
-import { getTurnServerCredentials } from "../client/cloudflare";
+import { AuthRequest } from "../../middleware/authMiddleware";
+import { getTurnServerCredentials } from "../../client/cloudflare";
 
 export class TurnServerController {
   async getTurnCredentials(
