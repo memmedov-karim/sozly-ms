@@ -10,7 +10,7 @@ import helmet from "helmet";
 import { createServer } from "http";
 import { DatabaseConfig } from "./config/database";
 import ipBanRouter from "./router/IPBanRouter";
-import optionRouter from "./router/OptionRouter";
+import optionRouter from "./router/client/OptionRouter";
 import reportRouter from "./router/ReportRouter";
 
 // Admin Panel Routers

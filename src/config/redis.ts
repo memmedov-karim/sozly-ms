@@ -16,7 +16,7 @@ export class RedisConfig {
   async connect(): Promise<void> {
     try {
       this.client = createClient({
-        url: process.env.REDIS_URL || 'redis://:20012912M.s@213.199.33.9:6379',
+        url: process.env.REDIS_URI,
       });
 
       this.client.on('error', (err) => {
