@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { getUserPreferencesOptions } from '../services/OptionService';
+import { getUserPreferencesOptions } from '../services/client/OptionService';
 
 const DEFAULT_LANG = 'az';
 

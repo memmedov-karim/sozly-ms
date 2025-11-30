@@ -21,8 +21,8 @@ import chatManagementRouter from "./router/ChatManagementRouter";
 import dashboardRouter from "./router/DashboardRouter";
 import reportManagementRouter from "./router/ReportManagementRouter";
 import userManagementRouter from "./router/UserManagementRouter";
-import turnServerRouter from "./router/TurnServerRouter";
-
+import turnServerRouter from "./router/client/TurnServerRouter";
+import clientAuthRouter from "./router/client/ClientAuthRouter";
 import { CORS_ORIGIN } from "./constants/shared";
 import { globalErrorHandler } from "./middleware/errorHandler";
 import { gracefulShutdown } from "./shutdown";
@@ -64,13 +64,13 @@ const corsOptions = {
     "x-user-id",
   ],
   exposedHeaders: ["Content-Length", "X-Request-Id"],
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
   preflightContinue: false,
   optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // Handle preflight for Safari
+app.options("*", cors(corsOptions));
 
 app.use(
   helmet({
@@ -111,6 +111,7 @@ app.use(reportRouter);
 app.use("/api/ban", ipBanRouter);
 app.use("/api/turn", turnServerRouter);
 
+app.use("/api/client", clientAuthRouter);
 // Authentication routes (public)
 app.use("/api/auth", authRouter);
 
