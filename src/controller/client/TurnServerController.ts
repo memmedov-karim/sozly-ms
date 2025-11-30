@@ -15,12 +15,9 @@ export class TurnServerController {
         data,
       });
     } catch (error: any) {
-      res.status(404).json({
-        success: false,
-        message: error.message || "Credentials fetch failed",
-      });
+      next(error);
     }
-  }
+  } 
 }
 
 export default new TurnServerController();
